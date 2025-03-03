@@ -1,16 +1,15 @@
-#!python3
-import os, sys
 import cgi
+import os, sys
 import sqlite3
-from wsgiref.util import setup_testing_defaults, shift_path_info
 from wsgiref.simple_server import make_server
+from wsgiref.util import setup_testing_defaults, shift_path_info
 
 #
 # Ensure we're using the same database filename throughout.
 # It doesn't matter what this is called or where it is:
 # sqlite3 will just accept anything.
 #
-DATABASE_FILEPATH = "bookings.db"
+DATABASE_FILEPATH = "../bookings.db"
 
 def create_database():
     """Connect to the database, read the CREATE statements and split
@@ -64,10 +63,10 @@ def populate_database():
     q.execute(sql, [2, "Donald Duck", "donald.duck@example.com"])
     q.execute(sql, [3, "Kermit the Frog", None])
 
-    sql = "INSERT INTO rooms(id, name, location) VALUES(?, ?, ?)"
-    q.execute(sql, [1, "Room A", "Next to the stairway"])
-    q.execute(sql, [2, "Room B", "On the Second Floor"])
-    q.execute(sql, [3, "Main Hall", None])
+    sql = "INSERT INTO drones(id, name, location) VALUES(?, ?, ?)"
+    q.execute(sql, [1, "Drone A", "South Street Seaport"])
+    q.execute(sql, [2, "Drone B", "Hudson Yards"])
+    q.execute(sql, [3, "Drone C", "UN Building"])
 
     #
     # Triple-quoted strings can cross lines
@@ -77,7 +76,7 @@ def populate_database():
     INSERT INTO
         bookings
     (
-        room_id, user_id, booked_on, booked_from, booked_to
+        drone_id, user_id, booked_on, booked_from, booked_to
     )
     VALUES(
         ?, ?, ?, ?, ?
@@ -125,35 +124,34 @@ def get_users():
     """
     return select("SELECT * FROM users")
 
-def get_rooms():
+def get_drones():
     """Get all the rooms from the database
     """
-    return select("SELECT * FROM rooms")
+    return select("SELECT * FROM drones")
 
 def get_bookings_for_user(user_id):
     """Get all the bookings made by a user
     """
     return select("SELECT * FROM v_bookings WHERE user_id = ?", [user_id])
 
-def get_bookings_for_room(room_id):
+def get_bookings_for_drone(drone_id):
     """Get all the bookings made against a room
     """
-    return select("SELECT * FROM v_bookings WHERE room_id = ?", [room_id])
+    return select("SELECT * FROM v_bookings WHERE drone_id = ?", [drone_id])
 
 def add_user_to_database(name, email_address):
     """Add a user to the database
     """
-    print("%r, %r" % (name, email_address))
     execute(
         "INSERT INTO users(name, email_address) VALUES (?, ?)",
         [name, email_address]
     )
 
-def add_room_to_database(name, location):
+def add_drone_to_database(name, location):
     """Add a user to the database
     """
     execute(
-        "INSERT INTO rooms(name, location) VALUES (?, ?)",
+        "INSERT INTO drones(name, location) VALUES (?, ?)",
         [name, location]
     )
 
@@ -164,7 +162,7 @@ def page(title, content):
     return """
     <html>
     <head>
-    <title>Room Booking System: {title}</title>
+    <title>Drone Booking System: {title}</title>
     <style>
     body {{
         background-colour : #cff;
@@ -194,7 +192,7 @@ def index_page(environ):
     html = """
     <ul>
         <li><a href="/users">Users</a></li>
-        <li><a href="/rooms">Rooms</a></li>
+        <li><a href="/drones">Drones</a></li>
         <li><a href="/bookings">Bookings</a></li>
     </ul>
     """
@@ -219,34 +217,34 @@ def users_page(environ):
     </form>"""
     return page("Users", html)
 
-def rooms_page(environ):
+def drones_page(environ):
     """Provide a list of all the rooms, linking to their bookings
     """
     html = "<ul>"
-    for room in get_rooms():
-        html += '<li><a href="/bookings/room/{id}">{name}</a> ({location})</li>\n'.format(
-            id=room['id'],
-            name=room['name'],
-            location=room['location'] or "Location unknown"
+    for drone in get_drones():
+        html += '<li><a href="/bookings/drone/{id}">{name}</a> ({location})</li>\n'.format(
+            id=drone['id'],
+            name=drone['name'],
+            location=drone['location'] or "Location unknown"
         )
     html += "</ul>"
     html += "<hr/>"
-    html += """<form method="POST" action="/add-room">
+    html += """<form method="POST" action="/add-drone">
     <label for="name">Name:</label>&nbsp;<input type="text" name="name"/>
     <label for="location">Location:</label>&nbsp;<input type="text" name="location"/>
-    <input type="submit" name="submit" value="Add Room"/>
+    <input type="submit" name="submit" value="Add Drone"/>
     </form>"""
-    return page("Rooms", html)
+    return page("Drones", html)
 
 def bookings_user_page(environ):
     """Provide a list of bookings by user, showing room and date/time
     """
     user_id = int(shift_path_info(environ))
     html = "<table>"
-    html += "<tr><td>Room</td><td>Date</td><td>Times</td></tr>"
+    html += "<tr><td>Drone</td><td>Date</td><td>Times</td></tr>"
     for booking in get_bookings_for_user(user_id):
-        html += "<tr><td>{room_name}</td><td>{booked_on}</td><td>{booked_from} - {booked_to}</td></tr>".format(
-            room_name=booking['room_name'],
+        html += "<tr><td>{drone_name}</td><td>{booked_on}</td><td>{booked_from} - {booked_to}</td></tr>".format(
+            drone_name=booking['drone_name'],
             booked_on=booking['booked_on'],
             booked_from=booking['booked_from'] or "",
             booked_to=booking['booked_to'] or ""
@@ -254,13 +252,13 @@ def bookings_user_page(environ):
     html += "</table>"
     return page("Bookings for user %d" % user_id, html)
 
-def bookings_room_page(environ):
+def bookings_drone_page(environ):
     """Provide a list of bookings by room, showing user and date/time
     """
-    room_id = int(shift_path_info(environ))
+    drone_id = int(shift_path_info(environ))
     html = "<table>"
     html += "<tr><td>User</td><td>Date</td><td>Times</td></tr>"
-    for booking in get_bookings_for_room(room_id):
+    for booking in get_bookings_for_drone(drone_id):
         html += "<tr><td>{user_name}</td><td>{booked_on}</td><td>{booked_from} - {booked_to}</td></tr>".format(
             user_name=booking['user_name'],
             booked_on=booking['booked_on'],
@@ -268,7 +266,7 @@ def bookings_room_page(environ):
             booked_to=booking['booked_to'] or ""
         )
     html += "</table>"
-    return page("Bookings for room %d" % room_id, html)
+    return page("Bookings for drone %d" % drone_id, html)
 
 def bookings_page(environ):
     """Provide a list of all bookings by a user or room, showing
@@ -277,8 +275,8 @@ def bookings_page(environ):
     category = shift_path_info(environ)
     if category == "user":
         return bookings_user_page(environ)
-    elif category == "room":
-        return bookings_room_page(environ)
+    elif category == "drone":
+        return bookings_drone_page(environ)
     else:
         return "No such booking category"
 
@@ -286,9 +284,9 @@ def add_user(environ):
     form = cgi.FieldStorage(fp=environ['wsgi.input'], environ=environ.copy(), keep_blank_values=True)
     add_user_to_database(form.getfirst("name"), form.getfirst('email_address', ""))
 
-def add_room(environ):
+def add_drone(environ):
     form = cgi.FieldStorage(fp=environ['wsgi.input'], environ=environ.copy(), keep_blank_values=True)
-    add_room_to_database(form.getfirst("name"), form.getfirst('location', None))
+    add_drone_to_database(form.getfirst("name"), form.getfirst('location', None))
 
 def webapp(environ, start_response):
     """Serve simple pages, based on whether the URL requests
@@ -314,8 +312,8 @@ def webapp(environ, start_response):
         data = index_page(environ)
     elif param1 == "users":
         data = users_page(environ)
-    elif param1 == "rooms":
-        data = rooms_page(environ)
+    elif param1 == "drones":
+        data = drones_page(environ)
     elif param1 == "bookings":
         data = bookings_page(environ)
     elif param1 == "add-user":
@@ -323,10 +321,10 @@ def webapp(environ, start_response):
         status = "301 Redirect"
         headers.append(("Location", "/users"))
         data = ""
-    elif param1 == "add-room":
-        add_room(environ)
+    elif param1 == "add-drone":
+        add_drone(environ)
         status = "301 Redirect"
-        headers.append(("Location", "/rooms"))
+        headers.append(("Location", "/drones"))
         data = ""
     else:
         status = '404 Not Found'
