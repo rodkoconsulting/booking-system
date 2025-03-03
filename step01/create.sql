@@ -8,7 +8,7 @@ CREATE TABLE
 ;
 
 CREATE TABLE
-    rooms
+    drones
 (
     id INTEGER PRIMARY KEY NOT NULL,
     name VARCHAR(200) NOT NULL,
@@ -20,7 +20,7 @@ CREATE TABLE
     bookings
 (
     user_id INTEGER NOT NULL,
-    room_id INTEGER NOT NULL,
+    drone_id INTEGER NOT NULL,
     booked_on DATE NOT NULL,
     booked_from TIME NULL,
     booked_to TIME NULL
@@ -32,7 +32,7 @@ CREATE VIEW
 AS SELECT
     boo.user_id,
     usr.name AS user_name,
-    boo.room_id,
+    boo.drone_id,
     roo.name AS room_name,
     boo.booked_on,
     boo.booked_from,
@@ -42,5 +42,5 @@ FROM
 JOIN users AS usr ON
     usr.id = boo.user_id
 JOIN rooms AS roo ON
-    roo.id = boo.room_id
+    roo.id = boo.drone_id
 ;
