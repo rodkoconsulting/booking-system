@@ -33,7 +33,7 @@ AS SELECT
     boo.user_id,
     usr.name AS user_name,
     boo.drone_id,
-    roo.name AS room_name,
+    drone.name AS drone_name,
     boo.booked_on,
     boo.booked_from,
     boo.booked_to
