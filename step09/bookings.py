@@ -207,7 +207,7 @@ def bookings_user_page(environ):
 def bookings_drone_page(environ):
     """Provide a list of bookings by room, showing user and date/time
     """
-    room_id = int(shift_path_info(environ))
+    drone_id = int(shift_path_info(environ))
     html = "<table>"
     html += "<tr><td>User</td><td>Date</td><td>Times</td></tr>"
     for booking in get_bookings_for_drone(drone_id):
