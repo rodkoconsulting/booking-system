@@ -7,7 +7,7 @@ import sqlite3
 # It doesn't matter what this is called or where it is:
 # sqlite3 will just accept anything.
 #
-DATABASE_FILEPATH = "bookings.db"
+DATABASE_FILEPATH = "../bookings.db"
 def create_database():
     """Connect to the database, read the CREATE statements and split
     them at the semicolon into individual statements. Once each
