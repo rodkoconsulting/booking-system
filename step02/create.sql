@@ -41,6 +41,6 @@ FROM
     bookings AS boo
 JOIN users AS usr ON
     usr.id = boo.user_id
-JOIN rooms AS roo ON
-    roo.id = boo.drone_id
+JOIN drones AS drone ON
+    drone.id = boo.drone_id
 ;
