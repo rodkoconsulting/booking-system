@@ -7,7 +7,7 @@ import sqlite3
 # It doesn't matter what this is called or where it is:
 # sqlite3 will just accept anything.
 #
-DATABASE_FILEPATH = "bookings.db"
+DATABASE_FILEPATH = "../bookings.db"
 
 def create_database():
     """Connect to the database, read the CREATE statements and split
@@ -61,10 +61,10 @@ def populate_database():
     q.execute(sql, [2, "Donald Duck", "donald.duck@example.com"])
     q.execute(sql, [3, "Kermit the Frog", None])
 
-    sql = "INSERT INTO rooms(id, name, location) VALUES(?, ?, ?)"
-    q.execute(sql, [1, "Room A", "Next to the stairway"])
-    q.execute(sql, [2, "Room B", "On the Second Floor"])
-    q.execute(sql, [3, "Main Hall", None])
+    sql = "INSERT INTO drones(id, name, location) VALUES(?, ?, ?)"
+    q.execute(sql, [1, "Drone A", "South Street Seaport"])
+    q.execute(sql, [2, "Drone B", "Hudson Yards"])
+    q.execute(sql, [3, "Drone C", "UN Building"])
 
     #
     # Triple-quoted strings can cross lines
@@ -74,7 +74,7 @@ def populate_database():
     INSERT INTO
         bookings
     (
-        room_id, user_id, booked_on, booked_from, booked_to
+        drone_id, user_id, booked_on, booked_from, booked_to
     )
     VALUES(
         ?, ?, ?, ?, ?
@@ -108,20 +108,20 @@ def get_users():
     """
     return select("SELECT * FROM users")
 
-def get_rooms():
+def get_dones():
     """Get all the rooms from the database
     """
-    return select("SELECT * FROM rooms")
+    return select("SELECT * FROM drones")
 
 def get_bookings_for_user(user_id):
     """Get all the bookings made by a user
     """
     return select("SELECT * FROM v_bookings WHERE user_id = ?", [user_id])
 
-def get_bookings_for_room(room_id):
+def get_bookings_for_drone(drone_id):
     """Get all the bookings made against a room
     """
-    return select("SELECT * FROM v_bookings WHERE room_id = ?", [room_id])
+    return select("SELECT * FROM v_bookings WHERE drone_id = ?", [drone_id])
 
 if __name__ == '__main__':
     print("About to create database %s" % DATABASE_FILEPATH)
@@ -130,8 +130,8 @@ if __name__ == '__main__':
     populate_database()
     print("Bookings for user: 1")
     for booking in get_bookings_for_user(1):
-        print(booking['room_name'], booking['booked_on'])
-    print("Bookings for room: 2")
-    for booking in get_bookings_for_room(2):
+        print(booking['drone_name'], booking['booked_on'])
+    print("Bookings for drone: 2")
+    for booking in get_bookings_for_drone(2):
         print(booking['user_name'], booking['booked_on'])
     print("Finished")
