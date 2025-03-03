@@ -1,15 +1,17 @@
-import cgi
+#!python3
 import os, sys
+import cgi
+import datetime
 import sqlite3
-from wsgiref.simple_server import make_server
 from wsgiref.util import setup_testing_defaults, shift_path_info
+from wsgiref.simple_server import make_server
 
 #
 # Ensure we're using the same database filename throughout.
 # It doesn't matter what this is called or where it is:
 # sqlite3 will just accept anything.
 #
-DATABASE_FILEPATH = "../bookings.db"
+DATABASE_FILEPATH = "bookings.db"
 
 def create_database():
     """Connect to the database, read the CREATE statements and split
@@ -81,10 +83,10 @@ def populate_database():
     VALUES(
         ?, ?, ?, ?, ?
     )"""
-    q.execute(sql, [1, 1, '2014-09-25', '09:00', '10:00']) # Room A (1) booked by Mickey (1) from 9am to 10am on 25th Sep 2014
+    q.execute(sql, [1, 1, '2014-09-25', '09:00', '10:00']) # drone A (1) booked by Mickey (1) from 9am to 10am on 25th Sep 2014
     q.execute(sql, [3, 1, '2015-09-25', None, None]) # Main Hall (3) booked by Mickey (1) from all day on 25th Sep 2014
-    q.execute(sql, [2, 3, '2014-09-22', '12:00', None]) # Room B (2) booked by Kermit (3) from midday onwards on 22nd Sep 2014
-    q.execute(sql, [1, 2, '2015-02-14', '09:30', '10:00']) # Room A (1) booked by Donald (2) from 9.30am to 10am on 15th Feb 2014
+    q.execute(sql, [2, 3, '2014-09-22', '12:00', None]) # drone B (2) booked by Kermit (3) from midday onwards on 22nd Sep 2014
+    q.execute(sql, [1, 2, '2015-02-14', '09:30', '10:00']) # drone A (1) booked by Donald (2) from 9.30am to 10am on 15th Feb 2014
 
     q.close()
     db.commit()
@@ -119,15 +121,32 @@ def execute(sql_statement, params=None):
         q.close()
         db.close()
 
+def get_user(user_id):
+    """Return the user matching user_id
+    """
+    for user in select("SELECT * FROM users WHERE id = ?", [user_id]):
+        return user
+
+def get_drone(drone_id):
+    """Return the drone matching drone_id
+    """
+    for drone in select("SELECT * FROM drones WHERE id = ?", [drone_id]):
+        return drone
+
 def get_users():
     """Get all the users from the database
     """
     return select("SELECT * FROM users")
 
 def get_drones():
-    """Get all the rooms from the database
+    """Get all the drones from the database
     """
     return select("SELECT * FROM drones")
+
+def get_bookings():
+    """Get all the bookings ever made
+    """
+    return select("SELECT * FROM v_bookings")
 
 def get_bookings_for_user(user_id):
     """Get all the bookings made by a user
@@ -135,13 +154,14 @@ def get_bookings_for_user(user_id):
     return select("SELECT * FROM v_bookings WHERE user_id = ?", [user_id])
 
 def get_bookings_for_drone(drone_id):
-    """Get all the bookings made against a room
+    """Get all the bookings made against a drone
     """
     return select("SELECT * FROM v_bookings WHERE drone_id = ?", [drone_id])
 
 def add_user_to_database(name, email_address):
     """Add a user to the database
     """
+    print("%r, %r" % (name, email_address))
     execute(
         "INSERT INTO users(name, email_address) VALUES (?, ?)",
         [name, email_address]
@@ -153,6 +173,17 @@ def add_drone_to_database(name, location):
     execute(
         "INSERT INTO drones(name, location) VALUES (?, ?)",
         [name, location]
+    )
+
+def add_booking_to_database(user_id, drone_id, booked_on, booked_from=None, booked_to=None):
+    """Add a booking to the database
+    """
+    execute(
+        """
+        INSERT INTO bookings(user_id, drone_id, booked_on, booked_from, booked_to)
+        VALUES(?, ?, ?, ?, ?)
+        """,
+        [user_id, drone_id, booked_on, booked_from, booked_to]
     )
 
 def page(title, content):
@@ -218,7 +249,7 @@ def users_page(environ):
     return page("Users", html)
 
 def drones_page(environ):
-    """Provide a list of all the rooms, linking to their bookings
+    """Provide a list of all the drones, linking to their bookings
     """
     html = "<ul>"
     for drone in get_drones():
@@ -232,16 +263,56 @@ def drones_page(environ):
     html += """<form method="POST" action="/add-drone">
     <label for="name">Name:</label>&nbsp;<input type="text" name="name"/>
     <label for="location">Location:</label>&nbsp;<input type="text" name="location"/>
-    <input type="submit" name="submit" value="Add Drone"/>
+    <input type="submit" name="submit" value="Add drone"/>
     </form>"""
-    return page("Drones", html)
+    return page("drones", html)
+
+def all_bookings_page(environ):
+    """Provide a list of all bookings
+    """
+    html = "<table>"
+    html += "<tr><td>Drone</td><td>User</td><td>Date</td><td>Times</td></tr>"
+    for booking in get_bookings():
+        html += "<tr><td>{user_name}</td><td>{drone_name}</td><td>{booked_on}</td><td>{booked_from} - {booked_to}</td></tr>".format(
+            user_name=booking['user_name'],
+            drone_name=booking['drone_name'],
+            booked_on=booking['booked_on'],
+            booked_from=booking['booked_from'] or "",
+            booked_to=booking['booked_to'] or ""
+        )
+    html += "</table>"
+
+    html += "<hr/>"
+    html += '<form method="POST" action="/add-booking">'
+
+    html += '<label for="user_id">User:</label>&nbsp;<select name="user_id">'
+    for user in get_users():
+        html += '<option value="{id}">{name}</option>'.format(**user)
+    html += '</select>'
+
+    html += '&nbsp;|&nbsp;'
+
+    html += '<label for="drone_id">Drone:</label>&nbsp;<select name="drone_id">'
+    for drone in get_drones():
+        html += '<option value="{id}">{name}</option>'.format(**drone)
+    html += '</select>'
+
+    html += '&nbsp;|&nbsp;'
+    html += '<label for="booked_on">On</label>&nbsp;<input type="text" name="booked_on" value="{today}"/>'.format(today=datetime.date.today())
+    html += '&nbsp;<label for="booked_from">between</label>&nbsp;<input type="text" name="booked_from" />'
+    html += '&nbsp;<label for="booked_to">and</label>&nbsp;<input type="text" name="booked_to" />'
+    html += '<input type="submit" name="submit" value="Add Booking"/></form>'
+
+    return page("All Bookings", html)
+
 
 def bookings_user_page(environ):
-    """Provide a list of bookings by user, showing room and date/time
+    """Provide a list of bookings by user, showing drone and date/time
     """
     user_id = int(shift_path_info(environ))
+    user = get_user(user_id)
     html = "<table>"
-    html += "<tr><td>Drone</td><td>Date</td><td>Times</td></tr>"
+    html += "<tr><td>drone</td><td>Date</td><td>Times</td></tr>"
     for booking in get_bookings_for_user(user_id):
         html += "<tr><td>{drone_name}</td><td>{booked_on}</td><td>{booked_from} - {booked_to}</td></tr>".format(
             drone_name=booking['drone_name'],
@@ -250,12 +321,25 @@ def bookings_user_page(environ):
             booked_to=booking['booked_to'] or ""
         )
     html += "</table>"
-    return page("Bookings for user %d" % user_id, html)
+    html += "<hr/>"
+    html += '<form method="POST" action="/add-booking">'
+    html += '<input type="hidden" name="user_id" value="{user_id}"/>'.format(user_id=user_id)
+    html += '<label for="drone_id">drone:</label>&nbsp;<select name="drone_id">'
+    for drone in get_drones():
+        html += '<option value="{id}">{name}</option>'.format(**drone)
+    html += '</select>'
+    html += '&nbsp;|&nbsp;'
+    html += '<label for="booked_on">On</label>&nbsp;<input type="text" name="booked_on" value="{today}"/>'.format(today=datetime.date.today())
+    html += '&nbsp;<label for="booked_from">between</label>&nbsp;<input type="text" name="booked_from" />'
+    html += '&nbsp;<label for="booked_to">and</label>&nbsp;<input type="text" name="booked_to" />'
+    html += '<input type="submit" name="submit" value="Add Booking"/></form>'
+    return page("Bookings for %s" % user['name'], html)
 
 def bookings_drone_page(environ):
-    """Provide a list of bookings by room, showing user and date/time
+    """Provide a list of bookings by drone, showing user and date/time
     """
     drone_id = int(shift_path_info(environ))
+    drone = get_drone(drone_id)
     html = "<table>"
     html += "<tr><td>User</td><td>Date</td><td>Times</td></tr>"
     for booking in get_bookings_for_drone(drone_id):
@@ -266,14 +350,28 @@ def bookings_drone_page(environ):
             booked_to=booking['booked_to'] or ""
         )
     html += "</table>"
-    return page("Bookings for drone %d" % drone_id, html)
+    html += "<hr/>"
+    html += '<form method="POST" action="/add-booking">'
+    html += '<input type="hidden" name="drone_id" value="{drone_id}"/>'.format(drone_id=drone_id)
+    html += '<label for="user_id">User:</label>&nbsp;<select name="user_id">'
+    for user in get_users():
+        html += '<option value="{id}">{name}</option>'.format(**user)
+    html += '</select>'
+    html += '&nbsp;|&nbsp;'
+    html += '<label for="booked_on">On</label>&nbsp;<input type="text" name="booked_on" value="{today}"/>'.format(today=datetime.date.today())
+    html += '&nbsp;<label for="booked_from">between</label>&nbsp;<input type="text" name="booked_from" />'
+    html += '&nbsp;<label for="booked_to">and</label>&nbsp;<input type="text" name="booked_to" />'
+    html += '<input type="submit" name="submit" value="Add Booking"/></form>'
+    return page("Bookings for %s" % drone['name'], html)
 
 def bookings_page(environ):
-    """Provide a list of all bookings by a user or room, showing
-    the other thing (room or user) and the date/time
+    """Provide a list of all bookings by a user or drone, showing
+    the other thing (drone or user) and the date/time
     """
     category = shift_path_info(environ)
-    if category == "user":
+    if not category:
+        return all_bookings_page(environ)
+    elif category == "user":
         return bookings_user_page(environ)
     elif category == "drone":
         return bookings_drone_page(environ)
@@ -288,9 +386,19 @@ def add_drone(environ):
     form = cgi.FieldStorage(fp=environ['wsgi.input'], environ=environ.copy(), keep_blank_values=True)
     add_drone_to_database(form.getfirst("name"), form.getfirst('location', None))
 
+def add_booking(environ):
+    form = cgi.FieldStorage(fp=environ['wsgi.input'], environ=environ.copy(), keep_blank_values=True)
+    add_booking_to_database(
+        form.getfirst("user_id"),
+        form.getfirst("drone_id"),
+        form.getfirst("booked_on"),
+        form.getfirst("booked_from"),
+        form.getfirst("booked_to")
+    )
+
 def webapp(environ, start_response):
     """Serve simple pages, based on whether the URL requests
-    users, rooms or bookings. For now, just serve the Home page
+    users, drones or bookings. For now, just serve the Home page
     """
     setup_testing_defaults(environ)
 
@@ -325,6 +433,11 @@ def webapp(environ, start_response):
         add_drone(environ)
         status = "301 Redirect"
         headers.append(("Location", "/drones"))
+        data = ""
+    elif param1 == "add-booking":
+        add_booking(environ)
+        status = "301 Redirect"
+        headers.append(("Location", environ.get("HTTP_REFERER", "/bookings")))
         data = ""
     else:
         status = '404 Not Found'
