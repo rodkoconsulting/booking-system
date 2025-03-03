@@ -7,7 +7,7 @@ import sqlite3
 # It doesn't matter what this is called or where it is:
 # sqlite3 will just accept anything.
 #
-DATABASE_FILEPATH = "bookings.db"
+DATABASE_FILEPATH = "../bookings.db"
 
 def create_database():
     """Connect to the database, read the CREATE statements and split
@@ -61,10 +61,10 @@ def populate_database():
     q.execute(sql, [2, "Donald Duck", "donald.duck@example.com"])
     q.execute(sql, [3, "Kermit the Frog", None])
 
-    sql = "INSERT INTO rooms(id, name, location) VALUES(?, ?, ?)"
-    q.execute(sql, [1, "Room A", "Next to the stairway"])
-    q.execute(sql, [2, "Room B", "On the Second Floor"])
-    q.execute(sql, [3, "Main Hall", None])
+    sql = "INSERT INTO drones(id, name, location) VALUES(?, ?, ?)"
+    q.execute(sql, [1, "Drone A", "South Street Seaport"])
+    q.execute(sql, [2, "Drone B", "Hudson Yards"])
+    q.execute(sql, [3, "Drone C", "UN Building"])
 
     #
     # Triple-quoted strings can cross lines
@@ -74,7 +74,7 @@ def populate_database():
     INSERT INTO
         bookings
     (
-        room_id, user_id, booked_on, booked_from, booked_to
+        drone_id, user_id, booked_on, booked_from, booked_to
     )
     VALUES(
         ?, ?, ?, ?, ?
@@ -103,20 +103,20 @@ def get_users():
 
     return users
 
-def get_rooms():
+def get_drones():
     """Get all the rooms from the database
     """
     db = sqlite3.connect(DATABASE_FILEPATH)
     db.row_factory = sqlite3.Row
     q = db.cursor()
 
-    q.execute("SELECT * FROM rooms")
-    rooms = q.fetchall()
+    q.execute("SELECT * FROM drones")
+    drones = q.fetchall()
 
     q.close()
     db.close()
 
-    return rooms
+    return drones
 
 if __name__ == '__main__':
     print("About to create database %s" % DATABASE_FILEPATH)
@@ -126,6 +126,6 @@ if __name__ == '__main__':
     print("About to select data from %s" % DATABASE_FILEPATH)
     for user in get_users():
         print(user['name'])
-    for room in get_rooms():
-        print(room['name'])
+    for drone in get_drones():
+        print(drone['name'])
     print("Finished")
