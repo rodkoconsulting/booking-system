@@ -188,7 +188,7 @@ def drones_page(environ):
     html += "</ul>"
     return page("Drones", html)
 
-def drones_user_page(environ):
+def bookings_user_page(environ):
     """Provide a list of bookings by user, showing room and date/time
     """
     user_id = int(shift_path_info(environ))
