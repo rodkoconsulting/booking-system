@@ -157,7 +157,7 @@ if __name__ == '__main__':
     print("Bookings for user: 1")
     for booking in get_bookings_for_user(1):
         print(booking['drone_name'], booking['booked_on'])
-    print("Bookings for room: 2")
+    print("Bookings for drone: 2")
     for booking in get_bookings_for_drone(2):
         print(booking['user_name'], booking['booked_on'])
     print("Finished")
