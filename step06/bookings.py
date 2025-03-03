@@ -2,6 +2,7 @@
 import os, sys
 import sqlite3
 from wsgiref.simple_server import make_server
+from wsgiref.util import setup_testing_defaults
 
 #
 # Ensure we're using the same database filename throughout.
