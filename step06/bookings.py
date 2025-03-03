@@ -1,6 +1,7 @@
 #!python3
 import os, sys
 import sqlite3
+from wsgiref.simple_server import make_server
 
 #
 # Ensure we're using the same database filename throughout.
