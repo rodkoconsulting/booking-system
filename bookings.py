@@ -314,7 +314,7 @@ def drones_page(environ):
     </form>"""
     return page("drones", html)
 
-def all_bookings_page(environ):
+def all_bookings_page(environ, error_message=None):
     """Provide a list of all bookings
     """
     html = "<table>"
@@ -330,6 +330,8 @@ def all_bookings_page(environ):
     html += "</table>"
 
     html += "<hr/>"
+    if error_message:
+        html += '<div style="color: red; margin-bottom: 1em;">{}</div>'.format(error_message)
     html += '<form method="POST" action="/add-booking">'
 
     html += '<label for="user_id">User:</label>&nbsp;<select name="user_id">'
@@ -353,7 +355,7 @@ def all_bookings_page(environ):
     return page("All Bookings", html)
 
 
-def bookings_user_page(environ):
+def bookings_user_page(environ, error_message=None):
     """Provide a list of bookings by user, showing drone and date/time
     """
     user_id = int(shift_path_info(environ))
@@ -369,6 +371,8 @@ def bookings_user_page(environ):
         )
     html += "</table>"
     html += "<hr/>"
+    if error_message:
+        html += '<div style="color: red; margin-bottom: 1em;">{}</div>'.format(error_message)
     html += '<form method="POST" action="/add-booking">'
     html += '<input type="hidden" name="user_id" value="{user_id}"/>'.format(user_id=user_id)
     html += '<label for="drone_id">drone:</label>&nbsp;<select name="drone_id">'
@@ -382,7 +386,7 @@ def bookings_user_page(environ):
     html += '<input type="submit" name="submit" value="Add Booking"/></form>'
     return page("Bookings for %s" % user['name'], html)
 
-def bookings_drone_page(environ):
+def bookings_drone_page(environ, error_message=None):
     """Provide a list of bookings by drone, showing user and date/time
     """
     drone_id = int(shift_path_info(environ))
@@ -398,6 +402,8 @@ def bookings_drone_page(environ):
         )
     html += "</table>"
     html += "<hr/>"
+    if error_message:
+        html += '<div style="color: red; margin-bottom: 1em;">{}</div>'.format(error_message)
     html += '<form method="POST" action="/add-booking">'
     html += '<input type="hidden" name="drone_id" value="{drone_id}"/>'.format(drone_id=drone_id)
     html += '<label for="user_id">User:</label>&nbsp;<select name="user_id">'
@@ -411,17 +417,17 @@ def bookings_drone_page(environ):
     html += '<input type="submit" name="submit" value="Add Booking"/></form>'
     return page("Bookings for %s" % drone['name'], html)
 
-def bookings_page(environ):
+def bookings_page(environ, error_message=None):
     """Provide a list of all bookings by a user or drone, showing
     the other thing (drone or user) and the date/time
     """
     category = shift_path_info(environ)
     if not category:
-        return all_bookings_page(environ)
+        return all_bookings_page(environ, error_message)
     elif category == "user":
-        return bookings_user_page(environ)
+        return bookings_user_page(environ, error_message)
     elif category == "drone":
-        return bookings_drone_page(environ)
+        return bookings_drone_page(environ, error_message)
     else:
         return "No such booking category"
 
@@ -458,14 +464,10 @@ def webapp(environ, start_response):
     #
     status = '200 OK'
     headers = [('Content-type', 'text/html; charset=utf-8')]
-    #
-    # Pick up the first segment on the path and pass
-    # the rest along.
-    #
-    # ie if we're looking for /users/1/bookings,
-    # param1 will be "users", and the remaining path will
-    # be "/1/bookings".
-    #
+    
+    # Store the original path for error handling
+    original_path = environ.get('PATH_INFO', '')
+    
     param1 = shift_path_info(environ)
     if param1 == "":
         data = index_page(environ)
@@ -492,8 +494,9 @@ def webapp(environ, start_response):
             headers.append(("Location", environ.get("HTTP_REFERER", "/bookings")))
             data = ""
         else:
-            status = "400 Bad Request"
-            data = page("Booking Error", error_message)
+            # Reconstruct the original environment for the booking page
+            environ['PATH_INFO'] = environ.get("HTTP_REFERER", "/bookings").replace("/bookings", "")
+            data = bookings_page(environ, error_message)
     else:
         status = '404 Not Found'
         data = "Not Found: %s" % param1
