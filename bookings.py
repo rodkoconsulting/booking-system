@@ -465,9 +465,6 @@ def webapp(environ, start_response):
     status = '200 OK'
     headers = [('Content-type', 'text/html; charset=utf-8')]
     
-    # Store the original path for error handling
-    original_path = environ.get('PATH_INFO', '')
-    
     param1 = shift_path_info(environ)
     if param1 == "":
         data = index_page(environ)
@@ -494,8 +491,14 @@ def webapp(environ, start_response):
             headers.append(("Location", environ.get("HTTP_REFERER", "/bookings")))
             data = ""
         else:
-            # Reconstruct the original environment for the booking page
-            environ['PATH_INFO'] = environ.get("HTTP_REFERER", "/bookings").replace("/bookings", "")
+            # Get the referer URL and extract the path
+            referer = environ.get("HTTP_REFERER", "")
+            if "/bookings/user/" in referer:
+                environ['PATH_INFO'] = "/user/" + referer.split("/user/")[1]
+            elif "/bookings/drone/" in referer:
+                environ['PATH_INFO'] = "/drone/" + referer.split("/drone/")[1]
+            else:
+                environ['PATH_INFO'] = ""  # Default to all bookings page
             data = bookings_page(environ, error_message)
     else:
         status = '404 Not Found'
