@@ -175,9 +175,56 @@ def add_drone_to_database(name, location):
         [name, location]
     )
 
-def add_booking_to_database(user_id, drone_id, booked_on, booked_from=None, booked_to=None):
-    """Add a booking to the database
+def has_overlapping_bookings(drone_id, booked_on, booked_from=None, booked_to=None):
+    """Check if there are any overlapping bookings for the given drone and time period.
+    
+    Args:
+        drone_id: ID of the drone to check
+        booked_on: Date of the booking
+        booked_from: Start time (optional, defaults to '00:00')
+        booked_to: End time (optional, defaults to '23:59')
+        
+    Returns:
+        bool: True if there are overlapping bookings, False otherwise
     """
+    # Convert None times to start/end of day
+    booked_from = booked_from or '00:00'
+    booked_to = booked_to or '23:59'
+    
+    # Query to find overlapping bookings
+    sql = """
+    SELECT COUNT(*) FROM bookings 
+    WHERE drone_id = ? 
+    AND booked_on = ?
+    AND (
+        (? BETWEEN COALESCE(booked_from, '00:00') AND COALESCE(booked_to, '23:59')
+        OR ? BETWEEN COALESCE(booked_from, '00:00') AND COALESCE(booked_to, '23:59'))
+        OR
+        (COALESCE(booked_from, '00:00') BETWEEN ? AND ?
+        OR COALESCE(booked_to, '23:59') BETWEEN ? AND ?)
+    )
+    """
+    params = [drone_id, booked_on, booked_from, booked_to, booked_from, booked_to, booked_from, booked_to]
+    
+    db = sqlite3.connect(DATABASE_FILEPATH)
+    q = db.cursor()
+    try:
+        q.execute(sql, params)
+        count = q.fetchone()[0]
+        return count > 0
+    finally:
+        q.close()
+        db.close()
+
+def add_booking_to_database(user_id, drone_id, booked_on, booked_from=None, booked_to=None):
+    """Add a booking to the database if there are no overlapping bookings.
+    
+    Raises:
+        ValueError: If there is an overlapping booking for the same drone
+    """
+    if has_overlapping_bookings(drone_id, booked_on, booked_from, booked_to):
+        raise ValueError("Cannot book drone: There is an overlapping booking for this time period")
+        
     execute(
         """
         INSERT INTO bookings(user_id, drone_id, booked_on, booked_from, booked_to)
@@ -388,13 +435,17 @@ def add_drone(environ):
 
 def add_booking(environ):
     form = cgi.FieldStorage(fp=environ['wsgi.input'], environ=environ.copy(), keep_blank_values=True)
-    add_booking_to_database(
-        form.getfirst("user_id"),
-        form.getfirst("drone_id"),
-        form.getfirst("booked_on"),
-        form.getfirst("booked_from"),
-        form.getfirst("booked_to")
-    )
+    try:
+        add_booking_to_database(
+            form.getfirst("user_id"),
+            form.getfirst("drone_id"),
+            form.getfirst("booked_on"),
+            form.getfirst("booked_from"),
+            form.getfirst("booked_to")
+        )
+        return True, ""
+    except ValueError as e:
+        return False, str(e)
 
 def webapp(environ, start_response):
     """Serve simple pages, based on whether the URL requests
@@ -435,10 +486,14 @@ def webapp(environ, start_response):
         headers.append(("Location", "/drones"))
         data = ""
     elif param1 == "add-booking":
-        add_booking(environ)
-        status = "301 Redirect"
-        headers.append(("Location", environ.get("HTTP_REFERER", "/bookings")))
-        data = ""
+        success, error_message = add_booking(environ)
+        if success:
+            status = "301 Redirect"
+            headers.append(("Location", environ.get("HTTP_REFERER", "/bookings")))
+            data = ""
+        else:
+            status = "400 Bad Request"
+            data = page("Booking Error", error_message)
     else:
         status = '404 Not Found'
         data = "Not Found: %s" % param1
